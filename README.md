@@ -4,7 +4,7 @@ An AI-powered Government Schemes Assistant that helps users find information abo
 
 The chatbot uses **Retrieval-Augmented Generation (RAG)** with **ChromaDB**, **Ollama**, and **FastAPI** to retrieve relevant information from uploaded government PDF documents before generating accurate responses.
 
----
+
 
 #  Features
 
@@ -105,6 +105,43 @@ RAGCHATBOT/
 │   ├── styles.css
 │   └── utils.js
 ```
+
+# 📸 Screenshots
+
+## 🔐 Login Page
+
+![Login Page](screenshots/login.png)
+
+---
+
+## 📂 Database Page
+
+### Upload PDF
+
+![Upload](screenshots/database1.png)
+
+### Ingest Document
+
+![Ingest](screenshots/database2.png)
+
+
+---
+
+## 💬 Chat Interface
+
+![Chat Interface](screenshots/chat.png)
+
+---
+
+## 🤖 AI Response
+
+![AI Response](screenshots/response.png)
+
+---
+
+## 🐳 Docker Deployment
+
+![Docker](screenshots/docker.png)
 
 ---
 
