@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Chat with AI to discover government schemes tailored to your needs. Get personalized recommendations powered by RAG.">
+    <title>GovSchemes AI - Chat</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .chat-page {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 64px);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 var(--space-4);
+        }
+
+        /* Chat Header */
+        .chat-header {
+            padding: var(--space-6) 0;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .chat-header h1 {
+            font-size: var(--text-2xl);
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, var(--surface-300));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: var(--space-1);
+        }
+
+        .chat-header p {
+            color: var(--surface-500);
+            font-size: var(--text-sm);
+        }
+
+        /* Messages Container */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-4) 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+            scroll-behavior: smooth;
+        }
+
+        /* Welcome State */
+        .welcome-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--space-8);
+        }
+
+        .welcome-icon {
+            font-size: 4rem;
+            margin-bottom: var(--space-6);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .welcome-state h2 {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: white;
+            margin-bottom: var(--space-2);
+        }
+
+        .welcome-state p {
+            color: var(--surface-400);
+            max-width: 500px;
+            margin-bottom: var(--space-8);
+        }
+
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            justify-content: center;
+            max-width: 650px;
+        }
+
+        .suggestion-chip {
+            padding: var(--space-3) var(--space-5);
+            border-radius: var(--radius-xl);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--surface-300);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Message Bubbles */
+        .message {
+            display: flex;
+            gap: var(--space-3);
+            max-width: 85%;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        .message-user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-bot {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-lg);
+            flex-shrink: 0;
+        }
+
+        .message-user .message-avatar {
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+        }
+
+        .message-bot .message-avatar {
+            background: linear-gradient(135deg, var(--accent-500), var(--accent-600));
+        }
+
+        .message-content {
+            padding: var(--space-4) var(--space-5);
+            border-radius: var(--radius-xl);
+            font-size: var(--text-sm);
+            line-height: 1.7;
+        }
+
+        .message-user .message-content {
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+            color: white;
+            border-bottom-right-radius: var(--radius-sm);
+        }
+
+        .message-bot .message-content {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--surface-200);
+            border-bottom-left-radius: var(--radius-sm);
+        }
+
+        .message-bot .message-content strong {
+            color: white;
+        }
+
+        .message-bot .message-content p {
+            margin-bottom: var(--space-2);
+        }
+
+        .message-bot .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: var(--space-4) var(--space-5);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--surface-500);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-8px); }
+        }
+
+        /* Input Area */
+        .chat-input-area {
+            padding: var(--space-4) 0 var(--space-6);
+            flex-shrink: 0;
+        }
+
+        .chat-input-wrap {
+            display: flex;
+            gap: var(--space-3);
+            align-items: flex-end;
+            padding: var(--space-3);
+        }
+
+        .chat-textarea {
+            flex: 1;
+            resize: none;
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: var(--font-family);
+            font-size: var(--text-base);
+            padding: var(--space-3) var(--space-4);
+            outline: none;
+            min-height: 44px;
+            max-height: 150px;
+            line-height: 1.5;
+        }
+
+        .chat-textarea::placeholder {
+            color: var(--surface-500);
+        }
+
+        .ask-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            border: none;
+            color: white;
+            font-size: var(--text-xl);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-normal);
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .ask-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+        }
+
+        .ask-btn:active {
+            transform: scale(0.95);
+        }
+
+        .ask-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .ask-btn .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .input-hint {
+            text-align: center;
+            color: var(--surface-600);
+            font-size: var(--text-xs);
+            margin-top: var(--space-2);
+        }
+
+        /* Sources in messages */
+        .sources-tag {
+            margin-top: var(--space-3);
+            padding-top: var(--space-3);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: var(--text-xs);
+            color: var(--surface-500);
+        }
+
+        /* Markdown-like rendering */
+        .message-bot .message-content ul,
+        .message-bot .message-content ol {
+            margin-left: var(--space-5);
+            margin-bottom: var(--space-2);
+        }
+
+        .message-bot .message-content li {
+            margin-bottom: var(--space-1);
+        }
+
+        .message-bot .message-content code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div id="navbar-container"></div>
+
+    <div class="page-container" style="padding-bottom: 0;">
+        
+
+        <div class="chat-layout">
+
+        <div class="history-sidebar">
+                <h3>💬 Conversations</h3>
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    ＋ New Chat
+                </button>
+                <div id="history-list"></div>
+            </div>
+        
+
+        
+        <div class="chat-page">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <h1>💬 Government Schemes Assistant</h1>
+                <p>Ask me about government schemes, eligibility, benefits, and application processes</p>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="chat-messages" id="chat-messages">
+                <!-- Welcome State -->
+                <div class="welcome-state" id="welcome-state">
+                    <div class="welcome-icon">🏛️</div>
+                    <h2>How can I help you today?</h2>
+                    <p>I can help you find government schemes based on your needs, explain eligibility criteria, and guide you through application processes.</p>
+                    
+                    <div class="suggestion-chips">
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🏠 <span>What housing schemes are available?</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            💰 <span>Tell me about pension schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🌾 <span>Schemes for farmers</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            💼 <span>Startup and business schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🏥 <span>Health insurance schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            👩‍🎓 <span>Schemes for women and girls</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrap glass-card">
+                    <textarea class="chat-textarea" id="chat-input" 
+                              placeholder="Ask about government schemes..."
+                              rows="1"
+                              onkeydown="handleKeyDown(event)"
+                              oninput="autoResize(this)"></textarea>
+                    <button class="ask-btn" id="ask-btn" onclick="sendMessage()" title="Ask">
+                        <span id="ask-icon">➤</span>
+                    </button>
+                </div>
+                <div class="input-hint">Press Enter to send, Shift+Enter for new line</div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script>
+        // Auth check
+        if (!requireAuth()) throw new Error('Not authenticated');
+
+        // Render navbar
+        document.getElementById('navbar-container').innerHTML = renderNavbar('chat');
+
+        // State
+        let chatHistory = [];
+        let currentConversationId = null;
+        const messagesContainer = document.getElementById('chat-messages');
+
+        // ==================== Conversations ====================
+
+        async function loadConversations() {
+            try {
+                const data = await apiGet('/api/conversations');
+                const historyList = document.getElementById('history-list');
+                historyList.innerHTML = '';
+
+                data.conversations.forEach(conv => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item' + (conv.id === currentConversationId ? ' active' : '');
+                    item.setAttribute('data-id', conv.id);
+                    item.innerHTML = `<div class="conv-title">${escapeHtml(conv.title)}</div>`;
+                    item.onclick = () => openConversation(conv.id);
+                    historyList.appendChild(item);
+                });
+            } catch (err) {
+                console.error('Failed to load conversations:', err);
+            }
+        }
+
+        async function openConversation(conversationId) {
+            currentConversationId = conversationId;
+
+            // Clear chat area
+            messagesContainer.innerHTML = '';
+            chatHistory = [];
+
+            // Highlight active conversation in sidebar
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.classList.toggle('active', parseInt(item.getAttribute('data-id')) === conversationId);
+            });
+
+            try {
+                const data = await apiGet(`/api/conversations/${conversationId}`);
+
+                data.messages.forEach(msg => {
+                    const role = msg.role === 'user' ? 'user' : 'bot';
+                    appendMessage(role, msg.content);
+                    chatHistory.push({ role: msg.role, content: msg.content });
+                });
+            } catch (err) {
+                console.error('Failed to load conversation:', err);
+                showToast('Failed to load conversation', 'error');
+            }
+        }
+
+        function startNewChat() {
+            currentConversationId = null;
+            chatHistory = [];
+
+            // Clear messages and show welcome state
+            messagesContainer.innerHTML = `
+                <div class="welcome-state" id="welcome-state">
+                    <div class="welcome-icon">🏛️</div>
+                    <h2>How can I help you today?</h2>
+                    <p>I can help you find government schemes based on your needs, explain eligibility criteria, and guide you through application processes.</p>
+                    <div class="suggestion-chips">
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🏠 <span>What housing schemes are available?</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            💰 <span>Tell me about pension schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🌾 <span>Schemes for farmers</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            💼 <span>Startup and business schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            🏥 <span>Health insurance schemes</span>
+                        </div>
+                        <div class="suggestion-chip" onclick="askSuggestion(this)">
+                            👩‍🎓 <span>Schemes for women and girls</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove active highlight from sidebar
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            document.getElementById('chat-input').focus();
+        }
+
+        // ==================== Message Handling ====================
+
+        function askSuggestion(chip) {
+            const text = chip.querySelector('span').textContent;
+            document.getElementById('chat-input').value = text;
+            sendMessage();
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Hide welcome state
+            const welcome = document.getElementById('welcome-state');
+            if (welcome) welcome.remove();
+
+            // Add user message
+            appendMessage('user', message);
+            chatHistory.push({ role: 'user', content: message });
+
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Show typing indicator
+            const typingEl = showTyping();
+
+            // Disable input
+            const askBtn = document.getElementById('ask-btn');
+            const askIcon = document.getElementById('ask-icon');
+            askBtn.disabled = true;
+            askIcon.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const data = await apiPost('/api/chat', {
+                    message: message,
+                    history: chatHistory.slice(-6),
+                    conversation_id: currentConversationId
+                });
+
+                // Remove typing indicator
+                typingEl.remove();
+
+                // Update conversation_id from response
+                if (data.conversation_id) {
+                    currentConversationId = data.conversation_id;
+                }
+
+                // Add bot response
+                appendMessage('bot', data.response);
+                chatHistory.push({ role: 'assistant', content: data.response });
+
+                // Refresh sidebar to show new/updated conversations
+                loadConversations();
+
+            } catch (err) {
+                typingEl.remove();
+                appendMessage('bot', '❌ Sorry, I encountered an error. Please try again. Error: ' + err.message);
+                showToast('Chat error: ' + err.message, 'error');
+            }
+
+            // Re-enable input
+            askBtn.disabled = false;
+            askIcon.textContent = '➤';
+            input.focus();
+        }
+
+        function appendMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${role}`;
+
+            const avatar = role === 'user' ? '👤' : '🏛️';
+
+            // Format bot messages with basic markdown
+            let formattedContent = content;
+            if (role === 'bot') {
+                formattedContent = formatMarkdown(content);
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">${role === 'user' ? escapeHtml(content) : formattedContent}</div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message message-bot';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">🏛️</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            scrollToBottom();
+            return typingDiv;
+        }
+
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // ==================== Text Formatting ====================
+
+        function formatMarkdown(text) {
+            // Bold
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Italic
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // Line breaks to paragraphs
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = text.replace(/\n/g, '<br>');
+            // Bullet points
+            text = text.replace(/^- (.*?)(<br>|$)/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            // Wrap in paragraph
+            if (!text.startsWith('<')) text = '<p>' + text + '</p>';
+            return text;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ==================== Init ====================
+        loadConversations();
+        document.getElementById('chat-input').focus();
+    </script>
+</body>
+</html>

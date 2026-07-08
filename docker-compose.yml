@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+
+  postgres:
+
+    image: postgres:16
+
+    container_name: rag_postgres
+
+    restart: always
+
+    environment:
+      POSTGRES_DB: ragchatbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+
+  ollama:
+
+    image: ollama/ollama
+
+    container_name: rag_ollama
+
+    restart: always
+
+    ports:
+      - "11434:11434"
+
+    volumes:
+      - ollama_data:/root/.ollama
+
+
+
+  app:
+
+    build: .
+
+    container_name: rag_fastapi
+
+    restart: always
+
+    ports:
+      - "8000:8000"
+
+    environment:
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ragchatbot
+      DB_USER: postgres
+      DB_PASSWORD: password
+
+      OLLAMA_BASE_URL: http://ollama:11434
+
+    depends_on:
+
+      - postgres
+
+      - ollama
+
+    volumes:
+
+      - ./uploads:/app/uploads
+
+      - ./chroma_db:/app/chroma_db
+
+
+
+volumes:
+
+  postgres_data:
+
+  ollama_data:

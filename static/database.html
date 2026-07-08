@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Upload and manage government scheme PDFs for the AI-powered recommendation chatbot.">
+    <title>GovSchemes AI - Database</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .db-page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: var(--space-8);
+        }
+
+        .db-header {
+            margin-bottom: var(--space-8);
+        }
+
+        .db-header h1 {
+            font-size: var(--text-3xl);
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, var(--surface-300));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: var(--space-2);
+        }
+
+        .db-header p {
+            color: var(--surface-400);
+            font-size: var(--text-base);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-8);
+        }
+
+        .stat-card {
+            padding: var(--space-6);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: var(--text-3xl);
+            font-weight: 800;
+            margin-bottom: var(--space-1);
+        }
+
+        .stat-value.blue { color: var(--primary-400); }
+        .stat-value.orange { color: var(--accent-400); }
+        .stat-value.green { color: var(--success-400); }
+
+        .stat-label {
+            color: var(--surface-400);
+            font-size: var(--text-sm);
+            font-weight: 500;
+        }
+
+        /* Upload Zone */
+        .upload-section {
+            margin-bottom: var(--space-8);
+        }
+
+        .upload-zone {
+            padding: var(--space-12);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            border: 2px dashed var(--surface-600);
+            position: relative;
+        }
+
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--primary-500);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-zone.drag-over {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+            display: block;
+        }
+
+        .upload-text {
+            color: var(--surface-300);
+            font-size: var(--text-lg);
+            font-weight: 600;
+            margin-bottom: var(--space-2);
+        }
+
+        .upload-subtext {
+            color: var(--surface-500);
+            font-size: var(--text-sm);
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        /* Upload progress */
+        .upload-progress {
+            margin-top: var(--space-4);
+            display: none;
+        }
+
+        .progress-bar-track {
+            height: 6px;
+            background: var(--surface-700);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-500), var(--accent-500));
+            border-radius: var(--radius-full);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: var(--surface-400);
+            font-size: var(--text-sm);
+            margin-top: var(--space-2);
+        }
+
+        /* Documents Table */
+        .docs-section h2 {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            color: white;
+            margin-bottom: var(--space-6);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .docs-table-wrap {
+            overflow-x: auto;
+            padding: var(--space-2);
+        }
+
+        .docs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .docs-table thead th {
+            text-align: left;
+            padding: var(--space-4) var(--space-5);
+            color: var(--surface-400);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .docs-table tbody td {
+            padding: var(--space-4) var(--space-5);
+            font-size: var(--text-sm);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        .docs-table tbody tr {
+            transition: background var(--transition-fast);
+        }
+
+        .docs-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .doc-name {
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .doc-name .pdf-icon {
+            color: var(--error);
+            font-size: var(--text-lg);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-3);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-uploaded {
+            background: rgba(234, 179, 8, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .status-processing {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .status-ingested {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Summary Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            padding: var(--space-8);
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .modal-header h3 {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            color: white;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--surface-400);
+            font-size: var(--text-xl);
+            cursor: pointer;
+            padding: var(--space-2);
+            border-radius: var(--radius-md);
+            transition: all var(--transition-fast);
+        }
+
+        .modal-close:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            color: var(--surface-300);
+            line-height: 1.8;
+            font-size: var(--text-sm);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--space-12);
+            color: var(--surface-500);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: var(--text-base);
+        }
+
+        .btn-sm {
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--text-xs);
+        }
+
+        .action-btns {
+            display: flex;
+            gap: var(--space-2);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div id="navbar-container"></div>
+
+    <div class="page-container">
+        <div class="db-page">
+            <!-- Header -->
+            <div class="db-header fade-in">
+                <h1>📁 Document Database</h1>
+                <p>Upload government scheme PDFs and ingest them into the knowledge base for AI-powered recommendations.</p>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-row fade-in fade-in-delay-1">
+                <div class="stat-card glass-card">
+                    <div class="stat-value blue" id="stat-total">0</div>
+                    <div class="stat-label">Total Documents</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="stat-value green" id="stat-ingested">0</div>
+                    <div class="stat-label">Ingested</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="stat-value orange" id="stat-pending">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="upload-section fade-in fade-in-delay-2">
+                <div class="upload-zone glass-card" id="upload-zone"
+                     onclick="document.getElementById('file-input').click()"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event)">
+                    <span class="upload-icon">📤</span>
+                    <div class="upload-text">Drop PDF files here or click to browse</div>
+                    <div class="upload-subtext">Supports PDF files up to 50MB</div>
+                    <input type="file" id="file-input" class="upload-input" 
+                           accept=".pdf" multiple onchange="handleFileSelect(event)">
+                    
+                    <div class="upload-progress" id="upload-progress">
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Uploading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Table -->
+            <div class="docs-section fade-in fade-in-delay-3">
+                <h2>📋 Uploaded Documents</h2>
+                <div class="glass-card">
+                    <div class="docs-table-wrap">
+                        <table class="docs-table" id="docs-table">
+                            <thead>
+                                <tr>
+                                    <th>Document</th>
+                                    <th>Size</th>
+                                    <th>Status</th>
+                                    <th>Chunks</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="docs-tbody">
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">📂</div>
+                                            <p>No documents uploaded yet. Upload your first PDF above!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div class="modal-overlay" id="summary-modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Document Summary</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script>
+        // Auth check
+        if (!requireAuth()) throw new Error('Not authenticated');
+
+        // Render navbar
+        document.getElementById('navbar-container').innerHTML = renderNavbar('database');
+
+        // Load documents on page load
+        loadDocuments();
+
+        // ==================== File Upload ====================
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            if (files.length === 0) {
+                showToast('Please drop PDF files only', 'error');
+                return;
+            }
+            uploadFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) uploadFiles(files);
+            e.target.value = '';
+        }
+
+        async function uploadFiles(files) {
+            const progressEl = document.getElementById('upload-progress');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+
+            progressEl.style.display = 'block';
+            let uploaded = 0;
+
+            for (const file of files) {
+                progressText.textContent = `Uploading ${file.name}... (${uploaded + 1}/${files.length})`;
+                progressFill.style.width = `${((uploaded) / files.length) * 100}%`;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    await apiUpload('/api/upload', formData);
+                    uploaded++;
+                    progressFill.style.width = `${(uploaded / files.length) * 100}%`;
+                    showToast(`Uploaded: ${file.name}`, 'success');
+                } catch (err) {
+                    showToast(`Failed to upload ${file.name}: ${err.message}`, 'error');
+                }
+            }
+
+            progressText.textContent = 'Upload complete!';
+            setTimeout(() => {
+                progressEl.style.display = 'none';
+                progressFill.style.width = '0%';
+            }, 2000);
+
+            loadDocuments();
+        }
+
+        // ==================== Document Management ====================
+
+        async function loadDocuments() {
+            try {
+                const data = await apiGet('/api/documents');
+                const docs = data.documents;
+
+                // Update stats
+                document.getElementById('stat-total').textContent = docs.length;
+                document.getElementById('stat-ingested').textContent = docs.filter(d => d.status === 'ingested').length;
+                document.getElementById('stat-pending').textContent = docs.filter(d => d.status === 'uploaded').length;
+
+                // Render table
+                const tbody = document.getElementById('docs-tbody');
+                if (docs.length === 0) {
+                    tbody.innerHTML = `
+                        <tr><td colspan="6">
+                            <div class="empty-state">
+                                <div class="empty-icon">📂</div>
+                                <p>No documents uploaded yet. Upload your first PDF above!</p>
+                            </div>
+                        </td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = docs.map(doc => `
+                    <tr>
+                        <td>
+                            <div class="doc-name">
+                                <span class="pdf-icon">📄</span>
+                                <span title="${doc.filename}">${truncate(doc.filename, 40)}</span>
+                            </div>
+                        </td>
+                        <td style="color:var(--surface-400)">${formatFileSize(doc.file_size)}</td>
+                        <td><span class="status-badge status-${doc.status}">${getStatusIcon(doc.status)} ${doc.status}</span></td>
+                        <td style="color:var(--surface-400)">${doc.chunk_count || '-'}</td>
+                        <td style="color:var(--surface-400)">${formatDate(doc.uploaded_at)}</td>
+                        <td>
+                            <div class="action-btns">
+                                ${doc.status === 'uploaded' || doc.status === 'error' ? 
+                                    `<button class="btn btn-accent btn-sm" onclick="ingestDoc(${doc.id}, this)" id="ingest-btn-${doc.id}">
+                                        ⚡ Ingest & Summarize
+                                    </button>` : ''}
+                                ${doc.status === 'ingested' && doc.summary ? 
+                                    `<button class="btn btn-ghost btn-sm" onclick="showSummary('${escapeHtml(doc.filename)}', \`${escapeHtml(doc.summary)}\`)">
+                                        📝 View Summary
+                                    </button>` : ''}
+                                ${doc.status === 'processing' ? 
+                                    `<span class="status-badge status-processing">⏳ Processing...</span>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                showToast('Failed to load documents: ' + err.message, 'error');
+            }
+        }
+
+        async function ingestDoc(docId, btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<div class="spinner"></div> Ingesting...';
+
+            try {
+                const data = await apiPost(`/api/ingest/${docId}`, {});
+                showToast(`Document ingested! ${data.chunk_count} chunks created.`, 'success');
+                loadDocuments();
+            } catch (err) {
+                showToast('Ingestion failed: ' + err.message, 'error');
+                btnEl.disabled = false;
+                btnEl.innerHTML = '⚡ Ingest & Summarize';
+            }
+        }
+
+        // ==================== Modal ====================
+
+        function showSummary(filename, summary) {
+            document.getElementById('modal-title').textContent = `Summary: ${filename}`;
+            document.getElementById('modal-body').textContent = summary;
+            document.getElementById('summary-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('summary-modal').classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('summary-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        // ==================== Helpers ====================
+
+        function getStatusIcon(status) {
+            const icons = { uploaded: '🟡', processing: '🔵', ingested: '🟢', error: '🔴' };
+            return icons[status] || '⚪';
+        }
+
+        function truncate(str, max) {
+            return str.length > max ? str.substring(0, max) + '...' : str;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/`/g, '\\`').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+    </script>
+</body>
+</html>
